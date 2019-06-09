@@ -30,16 +30,6 @@ if __name__ == "__main__":
     # Experiment args
     parser.add_argument('--dataset-id', default="mnli", type=str,
                         help="The dataset to use")
-    parser.add_argument('--subset-seed', default=0, type=int,
-                        help="The seed to use for subset selection")
-    parser.add_argument('--subset-rel-size', default=0.1, type=float,
-                        help="The size of the subset relative to the dataset")
-    parser.add_argument('--num-subsets', default=5, type=int,
-                        help="The number of subsets per random choice type")
-    parser.add_argument('--balance-nonfires', dest='balance_nonfires', action='store_true',
-                        help="Force class balance for nonfires")
-    parser.add_argument('--balance-test', dest='balance_test', action='store_true',
-                        help="Force class balance for test set")
     parser.add_argument('--inverse-hvp-method', default=None, type=str,
                         help="The default inverse HVP method to use")
     parser.add_argument('--inverse-vp-method', default=None, type=str,
@@ -61,9 +51,6 @@ if __name__ == "__main__":
 
     config = {
         'dataset_config': dataset_config,
-        'subset_seed': args.subset_seed,
-        'subset_rel_size': args.subset_rel_size,
-        'num_subsets': args.num_subsets,
         'cross_validation_folds': 5,
         'normalized_cross_validation_range': {
             'mnli': (1e-4, 1e-1, 10),
@@ -74,8 +61,6 @@ if __name__ == "__main__":
         'inverse_vp_method': 'cholesky_lu',
         'max_memory': int(args.max_memory),
         'sample_weights': None,
-        'balance_nonfires': args.balance_nonfires,
-        'balance_test': args.balance_test,
         'grad_batch_size': args.grad_batch_size,
         'hessian_batch_size': args.hessian_batch_size,
      }

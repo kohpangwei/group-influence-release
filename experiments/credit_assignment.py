@@ -67,25 +67,8 @@ class CreditAssignment(Experiment):
 
         # Convenience member variables
         self.num_classes = self.model_config['arch']['num_classes']
-        self.num_subsets = self.config['num_subsets']
-        self.subset_size = int(self.num_train * self.config['subset_rel_size'])
         self.nonfires = ds.loader.load_supplemental_info(self.dataset_id + '_nonfires',
                 data_dir=self.data_dir)
-
-        def balance(ds, rngNum, weights=None):
-            locs = [np.where(ds.labels == i)[0] for i in range(self.num_classes)]
-            num_per_class = np.min([len(loc) for loc in locs])
-            inds = [np.random.RandomState(rngNum).choice(loc, num_per_class) for loc in locs]
-            inds = np.ndarray.flatten(inds)
-            if weights is not None:
-                return ds.subset(inds), weights[inds]
-            return ds.subset(inds)
-        
-        if 'balance_nonfires' in self.config and self.config['balance_nonfires']:
-            self.nonfires = balance(self.nonfires, 0)
-        if 'balance_test' in self.config and self.config['balance_test']:
-            self.test, self.sample_weights[2] = balance(self.test, 1, self.sample_weights[2])
-            self.datasets = base.Datasets(train=self.train, validation=self.validation, test=self.test)
 
         def print_class_balance(ds, name):
             print("Dataset {}:".format(name))
@@ -106,11 +89,9 @@ class CreditAssignment(Experiment):
 
     @property
     def run_id(self):
-        return "{}_sample_weights-{}{}{}".format(
+        return "{}_sample_weights-{}".format(
             self.dataset_id,
-            self.config['sample_weights'],
-            '-bal-nonfires' if 'balance_nonfires' in self.config and self.config['balance_nonfires'] else '',
-            '-bal-test' if 'balance_test' in self.config and self.config['balance_test'] else '')
+            self.config['sample_weights'])
 
     def get_model(self):
         if not hasattr(self, 'model'):
