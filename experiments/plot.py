@@ -10,10 +10,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import seaborn as sns
 import scipy.stats
-<<<<<<< HEAD
-=======
 sns.set()
->>>>>>> babble
 
 def plot_distribution(ax, value,
                       title="Distribution",

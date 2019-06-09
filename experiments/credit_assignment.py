@@ -50,12 +50,6 @@ class CreditAssignment(Experiment):
         model_config = LogisticRegression.default_config()
         model_config['arch'] = LogisticRegression.infer_arch(self.train)
         model_config['arch']['fit_intercept'] = True 
-        self.tf_training = False
-        if 'tf_training' in self.config and self.config['tf_training']:
-            model_config['sgd_config'] = self.config['sgd_config']
-            self.tf_training = True
-            if 'more_epochs' in model_config['sgd_config']:
-                self.more_epochs = model_config['sgd_config']['more_epochs']
 
         # Heuristic for determining maximum batch evaluation sizes without OOM
         D = model_config['arch']['input_dim'] * model_config['arch']['num_classes']
@@ -75,12 +69,8 @@ class CreditAssignment(Experiment):
         self.num_classes = self.model_config['arch']['num_classes']
         self.num_subsets = self.config['num_subsets']
         self.subset_size = int(self.num_train * self.config['subset_rel_size'])
-        if self.dataset_id in ['mnli', 'reduced_mnli']:
-            kwargs = {'mnli_num': self.config['dataset_config']['mnli_num']}
-        else:
-            kwargs = {}
         self.nonfires = ds.loader.load_supplemental_info(self.dataset_id + '_nonfires',
-                data_dir=self.data_dir, **kwargs)
+                data_dir=self.data_dir)
 
         def balance(ds, rngNum, weights=None):
             locs = [np.where(ds.labels == i)[0] for i in range(self.num_classes)]
@@ -116,20 +106,9 @@ class CreditAssignment(Experiment):
 
     @property
     def run_id(self):
-        if self.dataset_id in ['mnli', 'reduced_mnli']:
-            additional_name = '_{}'.format(self.config['dataset_config']['mnli_num'])
-            if 'proportion' in self.config['dataset_config'] and\
-                    self.config['dataset_config']['proportion'] is not None:
-                additional_name += '_proportion-{}'.format(self.config['dataset_config']['proportion'])
-            elif 'size' in self.config['dataset_config']:
-                additional_name += '_size-{}'.format(self.config['dataset_config']['size'])
-        return "{}{}_tf_training-{}_sample_weights-{}_batch_size-{}_initial_learning_rate-{}{}{}".format(
+        return "{}_sample_weights-{}{}{}".format(
             self.dataset_id,
-            additional_name,
-            self.config['tf_training'],
             self.config['sample_weights'],
-            self.config['sgd_config']['batch_size'] if self.config['tf_training'] else '',
-            self.config['sgd_config']['initial_learning_rate'] if self.config['tf_training'] else '',
             '-bal-nonfires' if 'balance_nonfires' in self.config and self.config['balance_nonfires'] else '',
             '-bal-test' if 'balance_test' in self.config and self.config['balance_test'] else '')
 
@@ -138,7 +117,7 @@ class CreditAssignment(Experiment):
             self.model = LogisticRegression(self.model_config, self.model_dir)
         return self.model
 
-    #@phase(0)
+    @phase(0)
     def cross_validation(self):
         model = self.get_model()
         res = dict()
@@ -166,7 +145,7 @@ class CreditAssignment(Experiment):
                     val_indices = np.arange(fold_begin, fold_end)
 
                     print('Fitting model.')
-                    model.fit(self.train.subset(train_indices), l2_reg=reg, sample_weights=self.sample_weights[0][train_indices], tf_training=self.tf_training)
+                    model.fit(self.train.subset(train_indices), l2_reg=reg, sample_weights=self.sample_weights[0][train_indices])
                     fold_loss = model.get_total_loss(self.train.subset(val_indices), reg=False, sample_weights=self.sample_weights[0][val_indices])
                     acc = model.get_accuracy(self.train.subset(val_indices))
                     cv_error += fold_loss
@@ -194,28 +173,10 @@ class CreditAssignment(Experiment):
     def initial_training(self):
         model = self.get_model()
         res = dict()
-
-        if self.dataset_id == 'mnli':
-            regs = np.logspace(np.log10(1e-4*self.num_train), np.log10(1e-1*self.num_train), 5)
-            if self.config['dataset_config']['mnli_num'] == 4:
-                l2_reg = regs[0]
-            else:
-                l2_reg = regs[2]
-            res['cv_l2_reg'] = l2_reg
-        else:
-            l2_reg = self.R['cv_l2_reg']
-
-        """params = np.load('/u/nlp/influence/output/original_model_params.npz')['params']
-        model.set_params(params) #TODO
-        print('Using other parameters')
-        model.print_model_eval(self.datasets, sample_weights=self.sample_weights, l2_reg=l2_reg)
-        print("Loss w reg on dataset: {}, Norm of mean of gradients: {} (w/o reg {})".format(\
-                model.get_total_loss(self.train, l2_reg=l2_reg),
-                np.linalg.norm(model.get_total_grad_loss(self.train, l2_reg=l2_reg)) / self.num_train,
-                np.linalg.norm(model.get_total_grad_loss(self.train, l2_reg=0)) / self.num_train))"""
+        l2_reg = self.R['cv_l2_reg']
 
         with benchmark("Training original model"):
-            model.fit(self.train, l2_reg=l2_reg, sample_weights=self.sample_weights[0], tf_training=self.tf_training)
+            model.fit(self.train, l2_reg=l2_reg, sample_weights=self.sample_weights[0])
             model.print_model_eval(self.datasets, sample_weights=self.sample_weights, l2_reg=l2_reg)
             model.save('initial')
 
@@ -237,33 +198,8 @@ class CreditAssignment(Experiment):
         res = dict()
 
         # Freeze each set after the first run
-        if self.dataset_id == "hospital":
-            fixed_test = [2267, 54826, 66678, 41567, 485, 25286]
-        elif self.dataset_id == "spam":
-            fixed_test = [14, 7, 10, 6, 15, 3]
-        elif self.dataset_id == "mnist_small":
-            fixed_test = [6172, 2044, 2293, 5305, 324, 3761]
-        elif self.dataset_id == "mnist":
-            fixed_test = [9009, 1790, 2293, 5844, 8977, 9433]
-        elif self.dataset_id == "dogfish":
-            fixed_test = [300, 399, 222, 520, 323, 182]
-        elif self.dataset_id == "animals":
-            fixed_test = [684, 850, 1492, 2380, 1539, 1267]
-        elif self.dataset_id == "cifar10":
-            fixed_test = [3629, 1019, 5259, 1082, 4237, 6811]
-        elif self.dataset_id == "processed_imageNet":
-            fixed_test = [684, 850, 1492, 2357, 480, 2288]
-        elif self.dataset_id in ['cdr', 'reduced_cdr']:
-            if 'balance_test' in self.config and self.config['balance_test']:
-                fixed_test = [898, 293, 14, 1139, 1783, 1100]
-            else:
-                fixed_test = [1502, 1021, 3778, 830, 3894, 3149]
-        elif self.dataset_id in ['spouse', 'reduced_spouse']:
-            fixed_test = [1452, 1103, 1263, 659, 2178, 2404]
-        elif self.dataset_id == "mnli":
+        if self.dataset_id == "mnli":
             fixed_test = [8487, 3448, 3156, 1127, 4218, 6907]
-        elif self.dataset_id == "reduced_mnli":
-            fixed_test = [187, 4281, 3156, 5799, 1147, 2469]
         else:
             test_losses = self.R['initial_test_losses']
             argsort = np.argsort(test_losses)
@@ -272,7 +208,7 @@ class CreditAssignment(Experiment):
 
             fixed_test = list(high_loss) + list(random_loss)
 
-        if self.dataset_id in ["mnli", "reduced_mnli"]:
+        if self.dataset_id in ["mnli"]:
             res['fixed_nonfires'] = [1722, 2734, 9467, 7378, 9448, 2838]
             print("Fixed nonfires points: {}".format(res['fixed_nonfires']))
 
@@ -297,7 +233,7 @@ class CreditAssignment(Experiment):
         return res
 
     def get_turker_subsets(self):
-        if self.dataset_id in ['mnli', 'reduced_mnli']:
+        if self.dataset_id in ['mnli']:
             from datasets.loader import load_supplemental_info
             turk_IDs = load_supplemental_info(self.dataset_id + '_ids', data_dir=self.data_dir)
             subsets = []
@@ -308,7 +244,7 @@ class CreditAssignment(Experiment):
         return [], []
 
     def get_genre_subsets(self, split=0):
-        if self.dataset_id in ['mnli', 'reduced_mnli']:
+        if self.dataset_id in ['mnli']:
             from datasets.loader import load_supplemental_info
             genre_IDs = load_supplemental_info(self.dataset_id + '_genres', data_dir=self.data_dir)
             subsets = []
@@ -319,7 +255,7 @@ class CreditAssignment(Experiment):
         return [], []
 
     def get_nonfires_genre_subsets(self):
-        if self.dataset_id in ['reduced_mnli', 'mnli']:
+        if self.dataset_id in ['mnli']:
             from datasets.loader import load_supplemental_info
             genre_IDs = load_supplemental_info(self.dataset_id + '_nonfires_genres', data_dir=self.data_dir)
             subsets = []
@@ -481,11 +417,7 @@ class CreditAssignment(Experiment):
             print('Retraining model for subset {} out of {} (tag={})'.format(i, len(subset_indices), subset_tags[i]))
             inds = [j for j in range(self.num_train) if j not in remove_indices]
 
-            if self.tf_training:
-                model.warm_fit(self.train.subset(inds), l2_reg=l2_reg,\
-                        tf_training=self.tf_training, more_epochs=self.more_epochs)
-            else:
-                model.warm_fit(self.train.subset(inds), l2_reg=l2_reg)
+            model.warm_fit(self.train.subset(inds), l2_reg=l2_reg)
             model.save('subset_{}'.format(i))
             train_losses.append(model.get_indiv_loss(self.train))
             test_losses.append(model.get_indiv_loss(self.test))
@@ -669,8 +601,7 @@ class CreditAssignment(Experiment):
         return map(simplify_tag, self.R['subset_tags'])
 
     def get_subtitle(self):
-        subtitle='{}'.format(self.dataset_id)#, {} subsets per type, proportion {}'.format(
-                #self.dataset_id, self.num_subsets, self.config['subset_rel_size'])
+        subtitle='{}'.format(self.dataset_id)
         return subtitle
 
     def plot_influence(self, title, figname, actl_loss, pred_loss, actl_margin=None, pred_margin=None,

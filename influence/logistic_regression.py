@@ -81,26 +81,6 @@ class LogisticRegression(Model):
             self.total_grad_margin = tf.einsum(
                 'ai,a->i', self.indiv_grad_margin, self.sample_weights_placeholder)
 
-        # Set up SGD training
-        if 'sgd_config' in self.config:
-            self.batch_size =               self.config['sgd_config']['batch_size']
-            self.max_batch_size =           self.config['sgd_config']['max_batch_size']
-            self.initial_learning_rate =    self.config['sgd_config']['initial_learning_rate']
-            self.num_epochs =               self.config['sgd_config']['num_epochs']
-            self.max_iter =                 self.config['sgd_config']['max_iter']
-            self.decay_epochs =             np.sort(self.config['sgd_config']['decay_epochs'])
-            self.save_epochs =              self.config['sgd_config']['save_epochs']
-            self.display_epochs =           self.config['sgd_config']['display_epochs']
-            self.display_steps =            self.config['sgd_config']['display_steps']
-            self.full_batch_start_epoch =   self.config['sgd_config']['full_batch_start_epoch']
-            self.switch_to_nonadam_epoch =  self.config['sgd_config']['switch_to_nonadam_epoch']
-
-            self.learning_rate = tf.Variable(self.initial_learning_rate, name='learning_rate', trainable=False)
-            self.learning_rate_placeholder = tf.placeholder(tf.float32)
-            self.learning_rate_assigner = tf.assign(self.learning_rate, self.learning_rate_placeholder)
-            self.optimizer =tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.avg_loss_reg)
-            self.adam_optimizer = tf.train.AdamOptimizer(self.initial_learning_rate).minimize(self.avg_loss_reg) #TODO: change optimizer, learningrate
-
         # Calculate gradients explicitly
         self.gradients(self.input_placeholder,
                        self.logits,
@@ -329,87 +309,7 @@ class LogisticRegression(Model):
         assign_op, placeholder = self.l2_reg_assigner
         self.sess.run(assign_op, feed_dict={placeholder: l2_reg})
 
-    def set_learning_rate(self, lr):
-        self.sess.run(self.learning_rate_assigner, feed_dict={self.learning_rate_placeholder: lr})
-
-    def train(self, dataset, sample_weights=None, l2_reg=0, warm=False, more_epochs=None, **kwargs):
-        # Make sure to train before attempting a warm retrain!
-        if not warm:
-            self.initialize_SGD()
-
-        self.set_l2_reg(l2_reg)
-        if sample_weights is None:
-            sample_weights = np.ones(dataset.num_examples)
-
-        steps_per_epoch = (dataset.num_examples + self.batch_size - 1) // self.batch_size
-        steps_per_epoch_full = (dataset.num_examples + self.max_batch_size - 1) // self.max_batch_size
-
-        if more_epochs is None:
-            more_epochs = self.num_epochs
-        if warm:
-            self.epoch = self.num_epochs - more_epochs
-            if self.epoch < 0: self.epoch = 0
-            num_decays = sum(self.decay_epochs < self.epoch)
-            self.set_learning_rate(self.initial_learning_rate / np.power(10.0, num_decays))
-            self.index_in_decay_epochs = num_decays
-            self.step_in_epoch = 0
-            if self.epoch < self.full_batch_start_epoch:
-                self.global_step = steps_per_epoch * self.epoch
-            else:
-                self.global_step = steps_per_epoch * self.full_batch_start_epoch +\
-                        steps_per_epoch_full * (self.epoch - self.full_batch_start_epoch)
-
-        while self.epoch < self.num_epochs:
-            # Update learning rate
-            if self.index_in_decay_epochs < self.decay_epochs.shape[0] and\
-                    self.epoch == self.decay_epochs[self.index_in_decay_epochs]:
-                self.set_learning_rate(self.learning_rate.eval(session=self.sess) / 10.0)
-                self.index_in_decay_epochs += 1
-                print("Learning rate is deacying by a factor of 10")
-
-            cost = 0
-
-            if self.epoch < self.full_batch_start_epoch:
-                steps_in_epoch = steps_per_epoch
-                size = self.batch_size
-            else:
-                steps_in_epoch = steps_per_epoch_full
-                size = self.max_batch_size
-            size = min(size, dataset.num_examples)
-
-            if self.epoch < self.switch_to_nonadam_epoch:
-                optimizer = self.adam_optimizer
-            else:
-                optimizer = self.optimizer
-
-            while self.step_in_epoch < steps_in_epoch:
-                if self.global_step >= self.max_iter: return
-                batch_indices = dataset.next_batch_indices(size)
-                _, c = self.sess.run([optimizer, self.avg_loss_reg], feed_dict={ #self.total_loss_reg #TODO
-                        self.input_placeholder: dataset.x[batch_indices],
-                        self.labels_placeholder: dataset.labels[batch_indices],
-                        self.sample_weights_placeholder: sample_weights[batch_indices],
-                })
-                cost += c
-                self.step_in_epoch += 1
-                self.global_step += 1 # I'm in a lower version of TF (1.4), but in higher ones, the adam optimizer can keep track of global_step
-                if self.display_steps > 0 and self.step_in_epoch  % self.display_steps == 0:
-                    print("Cost on step {} of epoch {}: {}".format(self.step_in_epoch, self.epoch, c))
-
-            self.epoch += 1
-            self.step_in_epoch = 0
-            if self.display_epochs > 0 and self.epoch % self.display_epochs == 0:
-                print("Average cost per step on epoch {} with batch size {}: {}".format(self.epoch,\
-                        size, cost/steps_per_epoch))
-                print("Loss w reg on dataset: {}, Accuracy on dataset: {}, Norm of mean of gradients: {} (w/o reg {}), using l2_reg {}, learning rate {}".format(
-                    self.get_total_loss(dataset, l2_reg=l2_reg), self.get_accuracy(dataset),
-                    np.linalg.norm(self.get_total_grad_loss(dataset, l2_reg=l2_reg)) / dataset.num_examples,
-                    np.linalg.norm(self.get_total_grad_loss(dataset, l2_reg=0)) / dataset.num_examples,
-                    l2_reg, self.learning_rate.eval(session=self.sess)))
-            if self.save_epochs > 0 and self.epoch % self.save_epochs == 0:
-                self.save('epoch_{}'.format(self.epoch), global_step=self.global_step)
-
-    def fit(self, dataset, sample_weights=None, l2_reg=0, tf_training=False, **kwargs):
+    def fit(self, dataset, sample_weights=None, l2_reg=0, **kwargs):
         """
         Resets the model's parameters and trains the model to fit the dataset.
         Minimizes the objective:
@@ -423,10 +323,6 @@ class LogisticRegression(Model):
         """
         if sample_weights is None:
             sample_weights = np.ones(dataset.num_examples)
-
-        if tf_training:
-            self.train(dataset, sample_weights=sample_weights, l2_reg=l2_reg, **kwargs)
-            return
 
         C = 1.0 / l2_reg
         sklearn_model = sklearn.linear_model.LogisticRegression(
@@ -451,7 +347,7 @@ class LogisticRegression(Model):
                     l2_reg))
 
 
-    def warm_fit(self, dataset, sample_weights=None, l2_reg=0, tf_training=False, **kwargs):
+    def warm_fit(self, dataset, sample_weights=None, l2_reg=0, **kwargs):
         """
         Trains the model to fit the dataset, using the previously stored
         parameters as a starting point.
@@ -461,10 +357,6 @@ class LogisticRegression(Model):
         """
         if sample_weights is None:
             sample_weights = np.ones(dataset.num_examples)
-
-        if tf_training:
-            self.train(dataset, sample_weights=sample_weights, l2_reg=l2_reg, warm=True, **kwargs)
-            return
 
         C = 1.0 / l2_reg
         sklearn_model = sklearn.linear_model.LogisticRegression(
