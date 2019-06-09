@@ -327,7 +327,7 @@ class LogisticRegression(Model):
         C = 1.0 / l2_reg
         sklearn_model = sklearn.linear_model.LogisticRegression(
             C=C,
-            tol=1e-10,
+            tol=1e-8,
             fit_intercept=self.fit_intercept,
             solver='lbfgs',
             multi_class=self.multi_class,
