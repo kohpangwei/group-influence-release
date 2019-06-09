@@ -38,7 +38,6 @@ if __name__ == "__main__":
                         help="Batch size when computing gradients, None for heuristic")
     parser.add_argument('--hessian-batch-size', default=30, type=int,
                         help="Batch size when computing hessian, None for heuristic")
-    parser.set_defaults(balance_nonfires=False, balance_test=False)
 
     args = parser.parse_args()
 

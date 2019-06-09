@@ -42,22 +42,6 @@ class DataValuation(Experiment):
                         np.ones(self.test.x.shape[0])]
         self.nonfires = ds.loader.load_supplemental_info(self.dataset_id + '_nonfires',
                 data_dir=self.data_dir)
-        def balance(ds, rngNum, weights=None):
-            pos_inds = np.where(ds.labels == 1)[0]
-            neg_inds = np.where(ds.labels == 0)[0]
-            num_per_class = min(len(pos_inds), len(neg_inds))
-            pos_inds = np.random.RandomState(rngNum).choice(pos_inds, num_per_class)
-            neg_inds = np.random.RandomState(rngNum).choice(neg_inds, num_per_class)
-            inds = np.concatenate((pos_inds, neg_inds))
-            if weights is not None:
-                return ds.subset(inds), weights[inds]
-            return ds.subset(inds)
-        
-        if 'balance_nonfires' in self.config and self.config['balance_nonfires']:
-            self.nonfires = balance(self.nonfires, 0)
-        if 'balance_test' in self.config and self.config['balance_test']:
-            self.test, self.sample_weights[2] = balance(self.test, 1, self.sample_weights[2])
-            self.datasets = base.Datasets(train=self.train, validation=self.validation, test=self.test)
 
         model_dir = os.path.join(self.base_dir, 'models')
         model_config = LogisticRegression.default_config()
@@ -75,18 +59,14 @@ class DataValuation(Experiment):
         # Convenience member variables
         self.num_train = self.train.num_examples
         self.num_classes = self.model_config['arch']['num_classes']
-        self.num_subsets = self.config['num_subsets']
-        self.subset_size = int(self.num_train * self.config['subset_rel_size'])
 
     experiment_id = "data_valuation"
 
     @property
     def run_id(self):
-        return "{}_sample_weights-{}{}{}".format(
+        return "{}_sample_weights-{}".format(
             self.dataset_id,
-            self.config['sample_weights'],
-            '-bal-nonfires' if 'balance_nonfires' in self.config and self.config['balance_nonfires'] else '',
-            '-bal-test' if 'balance_test' in self.config and self.config['balance_test'] else '')
+            self.config['sample_weights'])
 
     def get_model(self):
         if not hasattr(self, 'model'):
@@ -297,38 +277,7 @@ class DataValuation(Experiment):
 
         return res
 
-    def get_random_subsets(self, rng):
-        subsets = []
-        for i in range(self.num_subsets):
-            subsets.append(rng.choice(self.num_train, self.subset_size, replace=False))
-        return np.array(subsets)
-
-    def get_scalar_infl_tails(self, rng, pred_infl):
-        window = 2 * self.subset_size
-        assert window < self.num_train
-        scalar_infl_indices = np.argsort(pred_infl).reshape(-1)
-        pos_subsets, neg_subsets = [], []
-        for i in range(self.num_subsets):
-            neg_subsets.append(rng.choice(scalar_infl_indices[:window], self.subset_size, replace=False))
-            pos_subsets.append(rng.choice(scalar_infl_indices[-window:], self.subset_size, replace=False))
-        return np.array(neg_subsets), np.array(pos_subsets)
-
-    def get_same_grad_dir(self, rng, train_grad_loss):
-        # Using Pigeonhole to guarantee we get a sufficiently large cluster
-        n_clusters = int(math.floor(1 / self.config['subset_rel_size']))
-        km = KMeans(n_clusters=n_clusters)
-        km.fit(train_grad_loss)
-        labels, centroids = km.labels_, km.cluster_centers_
-        _, counts = np.unique(labels, return_counts=True)
-
-        best = max([(count, i) for i, count in enumerate(counts) if count >= self.subset_size])[1]
-        cluster_indices = np.where(labels == best)[0]
-        subsets = []
-        for i in range(self.num_subsets):
-            subsets.append(rng.choice(cluster_indices, self.subset_size, replace=False))
-        return np.array(subsets), best, labels
-
-    def get_same_features_subsets(self, rng, features, labels):
+    def get_same_features_subsets(self, features, labels):
         center_data = self.config['dataset_config']['center_data']
         if self.dataset_id in ['cdr', 'reduced_cdr'] and not center_data:
             from datasets.loader import load_supplemental_info
@@ -346,27 +295,11 @@ class DataValuation(Experiment):
 
     @phase(5)
     def pick_subsets(self):
-        rng = np.random.RandomState(self.config['subset_seed'])
         tagged_subsets = []
 
-        with benchmark("Random subsets"):
-            random_subsets = self.get_random_subsets(rng)
-            tagged_subsets += [('random', s) for s in random_subsets]
-
-        with benchmark("Scalar infl tail subsets"):
-            for pred_infl, test_idx in zip(self.R['fixed_test_pred_infl'], self.R['fixed_test']):
-                neg_tail_subsets, pos_tail_subsets = self.get_scalar_infl_tails(rng, pred_infl)
-                tagged_subsets += [('neg_tail_test-{}'.format(test_idx), s) for s in neg_tail_subsets]
-                tagged_subsets += [('pos_tail_test-{}'.format(test_idx), s) for s in pos_tail_subsets]
-                print('Found scalar infl tail subsets for test idx {}.'.format(test_idx))
-
         with benchmark("Same features subsets"):
-            same_features_subsets = self.get_same_features_subsets(rng, self.train.x, self.train.labels)
+            same_features_subsets = self.get_same_features_subsets(self.train.x, self.train.labels)
             tagged_subsets += [('same_features', s) for s in same_features_subsets]
-
-        with benchmark("Same gradient subsets"):
-            same_grad_subsets, cluster_label, cluster_labels = self.get_same_grad_dir(rng, self.R['train_grad_loss'])
-            tagged_subsets += [('same_grad', s) for s in same_grad_subsets]
 
         subset_tags = [tag for tag, subset in tagged_subsets]
         subset_indices = [subset for tag, subset in tagged_subsets]
@@ -579,8 +512,7 @@ class DataValuation(Experiment):
         return map(simplify_tag, self.R['subset_tags'])
 
     def get_subtitle(self):
-        subtitle='{}'.format(self.dataset_id)#, {} subsets per type, proportion {}'.format(
-                #self.dataset_id, self.num_subsets, self.config['subset_rel_size'])
+        subtitle='{}'.format(self.dataset_id)
         return subtitle
 
     def get_same_features_indices(self):

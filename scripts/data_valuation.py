@@ -27,19 +27,9 @@ if __name__ == "__main__":
     # Experiment args
     parser.add_argument('--dataset-id', default="reduced_cdr", type=str,
                         help="The dataset to use")
-    parser.add_argument('--subset-seed', default=0, type=int,
-                        help="The seed to use for subset selection")
-    parser.add_argument('--subset-rel-size', default=0.1, type=float,
-                        help="The size of the subset relative to the dataset")
-    parser.add_argument('--num-subsets', default=5, type=int,
-                        help="The number of subsets per random choice type")
     parser.add_argument('--sample-weights', dest='sample_weights', action='store_true',
                         help="Weight examples according to number of contributing sources")
-    parser.add_argument('--balance-nonfires', dest='balance_nonfires', action='store_true',
-                        help="Force class balance for nonfires")
-    parser.add_argument('--balance-test', dest='balance_test', action='store_true',
-                        help="Force class balance for test set")
-    parser.set_defaults(sample_weights=False, balance_nonfires=False, balance_test=False)
+    parser.set_defaults(sample_weights=False)
     args = parser.parse_args()
 
     dataset_config = {
@@ -50,17 +40,12 @@ if __name__ == "__main__":
     }
     config = {
         'dataset_config': dataset_config,
-        'subset_seed': args.subset_seed,
-        'subset_rel_size': args.subset_rel_size,
-        'num_subsets': args.num_subsets,
         'cross_validation_folds': 5,
         'normalized_cross_validation_range': {
             'reduced_cdr': (1e-4, 1e-1, 10),
         }[args.dataset_id],
         'max_memory': int(args.max_memory),
         'sample_weights': args.sample_weights,
-        'balance_nonfires': args.balance_nonfires,
-        'balance_test': args.balance_test,
     }
 
     exp = DataValuation(config, out_dir=args.out_dir)
