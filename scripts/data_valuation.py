@@ -55,7 +55,6 @@ if __name__ == "__main__":
         'num_subsets': args.num_subsets,
         'cross_validation_folds': 5,
         'normalized_cross_validation_range': {
-            'reduced_spouse': (1e-7, 1e3, 10),
             'reduced_cdr': (1e-4, 1e-1, 10),
         }[args.dataset_id],
         'max_memory': int(args.max_memory),

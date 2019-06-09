@@ -78,7 +78,7 @@ class DataValuation(Experiment):
         self.num_subsets = self.config['num_subsets']
         self.subset_size = int(self.num_train * self.config['subset_rel_size'])
 
-    experiment_id = "data_valuation_rerun" #TODO
+    experiment_id = "data_valuation"
 
     @property
     def run_id(self):
@@ -182,21 +182,11 @@ class DataValuation(Experiment):
     def pick_test_points(self):
 
         # Freeze each set after the first run
-        if self.dataset_id == "hospital":
-            fixed_test = [2267, 54826, 66678, 41567, 485, 25286]
-        elif self.dataset_id == "spam":
-            fixed_test = [14, 7, 10, 6, 15, 3]
-        elif self.dataset_id == "mnist_small":
-            fixed_test = [6172, 2044, 2293, 5305, 324, 3761]
-        elif self.dataset_id == "processed_imageNet":
-            fixed_test = [684, 850, 1492, 2357, 480, 2288]
-        elif self.dataset_id in ['cdr', 'reduced_cdr']:
+        if self.dataset_id in ['cdr', 'reduced_cdr']:
             if 'balance_test' in self.config and self.config['balance_test']:
                 fixed_test = [898, 293, 14, 1139, 1783, 1100]
             else:
                 fixed_test = [1502, 1021, 3778, 830, 3894, 3149]
-        elif self.dataset_id in ['spouse', 'reduced_spouse']:
-            fixed_test = [1452, 1103, 1263, 659, 2178, 2404]
         else:
             test_losses = self.R['initial_test_losses']
             argsort = np.argsort(test_losses)
@@ -340,18 +330,7 @@ class DataValuation(Experiment):
 
     def get_same_features_subsets(self, rng, features, labels):
         center_data = self.config['dataset_config']['center_data']
-        if self.dataset_id == 'hospital' and not center_data:
-            indices = np.where(features[:,9]==1)[0]
-            indices = np.where(features[indices,1]>5)[0]
-            indices = np.where(features[indices,26]==1)[0]
-            indices = np.where(features[indices,14]==1)[0]
-            indices = np.where(features[indices,3]>5)[0]
-            subsets = []
-            print('Features subset has {} examples total'.format(len(indices)))
-            for i in range(self.num_subsets):
-                subsets.append(rng.choice(indices, 4*len(indices)//5, replace=False))
-            return subsets
-        elif self.dataset_id in ['spouse', 'reduced_spouse', 'cdr', 'reduced_cdr'] and not center_data:
+        if self.dataset_id in ['cdr', 'reduced_cdr'] and not center_data:
             from datasets.loader import load_supplemental_info
             LF_ids = load_supplemental_info(self.dataset_id + '_LFs', data_dir=self.data_dir)
             subsets = []
