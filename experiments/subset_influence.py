@@ -945,114 +945,118 @@ class SubsetInfluenceLogreg(Experiment):
                            self.R['subset_fixed_test_newton_infl'][:, i])
 
             if self.num_classes == 2:
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
+                compare_newton('fixed-test-{}'.format(test_idx), 'margin',
+                               self.R['subset_fixed_test_actl_margin_infl'][:, i],
+                               self.R['subset_fixed_test_pred_margin_infl'][:, i],
+                               self.R['subset_fixed_test_newton_margin_infl'][:, i])
 
-import datasets as ds
-import datasets.loader
-import datasets.mnist
-from datasets.common import DataSet
-from experiments.common import Experiment, collect_phases, phase
-from experiments.benchmark import benchmark
-from experiments.distribute import TaskQueue
-from experiments.plot import *
-from influence.logistic_regression import LogisticRegression
+    def plot_pparam_influence(self, save_and_close=False):
+        for pparam_type in ('pparam', 'nparam'):
+            self_infl_key = 'subset_self_{}_infl'.format(pparam_type)
+            fixed_test_infl_key = 'subset_fixed_test_{}_infl'.format(pparam_type)
+            fixed_test_margin_infl_key = 'subset_fixed_test_{}_margin_infl'.format(pparam_type)
+            if self_infl_key not in self.R: continue
+            if fixed_test_infl_key not in self.R: continue
 
-import os
-import time
-import math
-import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import scipy.linalg
+            self.plot_group_influence('self', 'loss',
+                                      self.R['subset_self_actl_infl'],
+                                      self.R[self_infl_key],
+                                      'actl', pparam_type,
+                                      save_and_close=save_and_close)
 
-from sklearn.cluster import KMeans
-import scipy.cluster.hierarchy as hcluster
+            for i, test_idx in enumerate(self.R['fixed_test']):
+                self.plot_group_influence('fixed-test-{}'.format(test_idx), 'loss',
+                                          self.R['subset_fixed_test_actl_infl'][:, i],
+                                          self.R[fixed_test_infl_key][:, i],
+                                          'actl', pparam_type,
+                                          save_and_close=save_and_close)
 
-@collect_phases
-class SubsetInfluenceLogreg(Experiment):
-    """
-    Compute various types of influence on subsets of the dataset
-    """
-    def __init__(self, config, out_dir=None):
-        super(SubsetInfluenceLogreg, self).__init__(config, out_dir)
-        self.datasets = ds.loader.load_dataset(**self.config['dataset_config'])
-        self.train = self.datasets.train
-        self.test = self.datasets.test
-        self.validation = self.datasets.validation
+                if self.num_classes == 2:
+                    self.plot_group_influence('fixed-test-{}'.format(test_idx), 'margin',
+                                              self.R['subset_fixed_test_actl_margin_infl'][:, i],
+                                              self.R[fixed_test_margin_infl_key][:, i],
+                                              'actl', pparam_type,
+                                              save_and_close=save_and_close)
 
-        model_dir = os.path.join(self.base_dir, 'models')
-        model_config = LogisticRegression.default_config()
-        model_config['arch'] = LogisticRegression.infer_arch(self.datasets.train)
-        model_config['arch']['fit_intercept'] = True
+    def plot_subset_sizes(self, save_and_close=False):
+        if self.subset_choice_type != "range": return
 
-        # Heuristic for determining maximum batch evaluation sizes without OOM
-        D = model_config['arch']['input_dim'] * model_config['arch']['num_classes']
-        model_config['grad_batch_size'] =  max(1, self.config['max_memory'] // D)
-        model_config['hessian_batch_size'] = max(1, self.config['max_memory'] // (D * D))
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8), squeeze=False)
+        plot_against_subset_size(ax[0][0],
+                                 self.R['subset_tags'],
+                                 self.R['subset_indices'],
+                                 self.R['subset_self_pred_infl'],
+                                 title='Group self-influence',
+                                 ylabel='Self-influence',
+                                 subtitle=self.get_subtitle())
+        if save_and_close:
+            fig.savefig(os.path.join(self.plot_dir, 'sizes_self_loss.png'),
+                        bbox_inches='tight')
+            plt.close(fig)
 
-        # Set the method for computing inverse HVP
-        model_config['inverse_hvp_method'] = self.config['inverse_hvp_method']
+        for i, test_idx in enumerate(self.R['fixed_test']):
+            fig, ax = plt.subplots(1, 1, figsize=(8, 8), squeeze=False)
+            plot_against_subset_size(ax[0][0],
+                                     self.R['subset_tags'],
+                                     self.R['subset_indices'],
+                                     self.R['subset_fixed_test_pred_infl'][:, i],
+                                     title='Group influence on test pt {}'.format(test_idx),
+                                     subtitle=self.get_subtitle())
+            if save_and_close:
+                fig.savefig(os.path.join(self.plot_dir, 'sizes_fixed-test-{}_loss.png'.format(test_idx)),
+                            bbox_inches='tight')
+                plt.close(fig)
 
-        self.model_dir = model_dir
-        self.model_config = model_config
+        if 'subset_train_accuracy' not in self.R: return
+        if 'subset_test_accuracy' not in self.R: return
 
-        # Convenience member variables
-        self.dataset_id = self.config['dataset_config']['dataset_id']
-        self.num_train = self.datasets.train.num_examples
-        self.num_classes = self.model_config['arch']['num_classes']
-        self.num_subsets = self.config['num_subsets']
-        if self.subset_choice_type == "types":
-            self.subset_size = int(self.num_train * self.config['subset_rel_size'])
-        elif self.subset_choice_type == "range":
-            self.subset_min_size = int(self.num_train * self.config['subset_min_rel_size'])
-            self.subset_max_size = int(self.num_train * self.config['subset_max_rel_size'])
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8), squeeze=False)
+        plot_against_subset_size(ax[0][0],
+                                 self.R['subset_tags'],
+                                 self.R['subset_indices'],
+                                 self.R['subset_train_accuracy'],
+                                 title='Train accuracy by subset size',
+                                 ylabel='Train accuracy',
+                                 subtitle=self.get_subtitle())
+        if save_and_close:
+            fig.savefig(os.path.join(self.plot_dir, 'sizes_train-accuracy.png'),
+                        bbox_inches='tight')
+            plt.close(fig)
 
-        tasks_dir = os.path.join(self.base_dir, 'tasks')
-        self.task_queue = TaskQueue(tasks_dir)
-        self.task_queue.define_task('retrain_subsets', self.retrain_subsets)
-        self.task_queue.define_task('self_pred_infl', self.self_pred_infl)
-        self.task_queue.define_task('newton_batch', self.newton_batch)
 
-    experiment_id = "ss_logreg"
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8), squeeze=False)
+        plot_against_subset_size(ax[0][0],
+                                 self.R['subset_tags'],
+                                 self.R['subset_indices'],
+                                 self.R['subset_test_accuracy'],
+                                 title='Test accuracy by subset size',
+                                 ylabel='Test accuracy',
+                                 subtitle=self.get_subtitle())
+        if save_and_close:
+            fig.savefig(os.path.join(self.plot_dir, 'sizes_test-accuracy.png'),
+                        bbox_inches='tight')
+            plt.close(fig)
 
-    @property
-    def subset_choice_type(self):
-        return self.config.get('subset_choice_type', 'types')
+    def plot_subset_hessian(self, save_and_close=False):
+        if 'subset_hessian_spectrum' not in self.R: return
 
-    @property
-    def run_id(self):
-        if self.subset_choice_type == "types":
-            run_id = "{}_ihvp-{}_seed-{}_size-{}_num-{}".format(
-                self.config['dataset_config']['dataset_id'],
-                self.config['inverse_hvp_method'],
-                self.config['subset_seed'],
-                self.config['subset_rel_size'],
-                self.config['num_subsets'])
-        elif self.subset_choice_type == "range":
-            run_id = "{}_ihvp-{}_seed-{}_sizes-{}-{}_num-{}".format(
-                self.config['dataset_config']['dataset_id'],
-                self.config['inverse_hvp_method'],
-                self.config['subset_seed'],
-                self.config['subset_min_rel_size'],
-                self.config['subset_max_rel_size'],
-                self.config['num_subsets'])
-        if self.config.get('tag', None) is not None:
-            run_id = "{}_{}".format(run_id, self.config['tag'])
-        return run_id
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8), squeeze=False)
+        max_eigenvalue = np.max(np.abs(self.R['subset_hessian_spectrum']), axis=1)
+        plot_distribution(ax[0][0],
+                          max_eigenvalue,
+                          title="Maximum eigenvalue of $H_{\lambda}(s)^{-1} H(w)$",
+                          subtitle=self.get_subtitle(),
+                          xlabel='Eigenvalue')
+        if save_and_close:
+            fig.savefig(os.path.join(self.plot_dir, 'subset-hessian-max-eig.png'),
+                        bbox_inches='tight')
+            plt.close(fig)
 
-    def get_model(self):
-        if not hasattr(self, 'model'):
-            self.model = LogisticRegression(self.model_config, self.model_dir, random_state=np.random.RandomState(2))
-        return self.model
-
-    @phase(0)
-    def cross_validation(self):
-        model = self.get_model()
-        res = dict()
-
-        reg_min, reg_max, reg_samples = self.config['normalized_cross_validation_range']
-        reg_min *= self.num_train
-        reg_max *= self.num_train
+    def plot_all(self, save_and_close=False):
+        self.plot_self_influence(save_and_close)
+        self.plot_fixed_test_influence(save_and_close)
+        self.plot_newton_influence(save_and_close)
+        self.plot_pparam_influence(save_and_close)
+        self.plot_z_norms(save_and_close)
+        self.plot_subset_sizes(save_and_close)
+        self.plot_subset_hessian(save_and_close)
