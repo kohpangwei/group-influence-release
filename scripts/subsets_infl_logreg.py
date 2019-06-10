@@ -24,12 +24,11 @@ if __name__ == "__main__":
     parser.add_argument('--force-refresh', dest='force_refresh', action='store_true',
                         help="Ignore previously saved results")
     parser.set_defaults(force_refresh=False)
-    parser.add_argument('--worker', dest='worker', action='store_true',
-                        help="Behave only as a worker")
-    parser.set_defaults(worker=False)
+    parser.add_argument('--no-intermediate-results', dest='no_intermediate_results', action='store_true',
+                        help="Do not save any intermediate results, and run only a single master without parallelization")
+    parser.set_defaults(no_intermediate_results=False)
     parser.add_argument('--invalidate', default=None, type=int,
                         help="Invalidate phases starting from this phase index")
-    parser.set_defaults(force_refresh=False)
     parser.add_argument('--worker', dest='worker', action='store_true',
                         help="Behave only as a worker")
     parser.set_defaults(worker=False)
@@ -97,6 +96,7 @@ if __name__ == "__main__":
         'max_memory': int(args.max_memory),
         'skip_hessian_spectrum': args.skip_hessian_spectrum,
         'tag': args.tag,
+        'master_only': args.no_intermediate_results,
     }
 
     if args.inverse_hvp_method is not None:
@@ -136,6 +136,17 @@ if __name__ == "__main__":
     if args.worker:
         exp.task_queue.run_worker()
     else:
-        exp.run(force_refresh=args.force_refresh,
-            invalidate_phase=args.invalidate)
-        exp.plot_all(save_and_close=True)
+        if args.no_intermediate_results:
+            exp.run(force_refresh=args.force_refresh,
+                    invalidate_phase=args.invalidate,
+                    save_phase_results=False)
+
+            summary_keys = [
+                'cv_l2_reg',
+                'initial_train_losses',
+            ]
+            exp.save_summary(summary_keys)
+        else:
+            exp.run(force_refresh=args.force_refresh,
+                    invalidate_phase=args.invalidate)
+            exp.plot_all(save_and_close=True)

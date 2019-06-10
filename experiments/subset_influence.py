@@ -64,7 +64,7 @@ class SubsetInfluenceLogreg(Experiment):
             self.subset_max_size = int(self.num_train * self.config['subset_max_rel_size'])
 
         tasks_dir = os.path.join(self.base_dir, 'tasks')
-        self.task_queue = TaskQueue(tasks_dir)
+        self.task_queue = TaskQueue(tasks_dir, master_only=self.config['master_only'])
         self.task_queue.define_task('retrain_subsets', self.retrain_subsets)
         self.task_queue.define_task('self_pred_infl', self.self_pred_infl)
         self.task_queue.define_task('newton_batch', self.newton_batch)

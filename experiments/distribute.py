@@ -11,7 +11,8 @@ import uuid
 
 class TaskQueue(object):
     def __init__(self, task_dir,
-                 claim_timeout=2 * 60 * 60):
+                 claim_timeout=2 * 60 * 60,
+                 master_only=False):
         self.task_dir = task_dir
         if not os.path.exists(task_dir):
             os.makedirs(self.task_dir)
@@ -20,6 +21,7 @@ class TaskQueue(object):
         self.tasks = []
         self.num_tasks_by_id = dict()
         self.claim_timeout = claim_timeout
+        self.master_only = master_only
 
         self.uuid = str(uuid.uuid4())
 
@@ -64,7 +66,24 @@ class TaskQueue(object):
             if os.path.exists(claim_path) and not os.path.exists(result_path):
                 os.remove(claim_path)
 
+    def execute_eager(self, task_id, task_args):
+        results = []
+        for args in task_args:
+            index = self.num_tasks_by_id[task_id]
+            self.num_tasks_by_id[task_id] += 1
+
+            print("Claimed task {}_{}.".format(task_id, index))
+            task_func = self.task_by_id[task_id]
+            result = task_func(*args)
+            print("Completed task {}_{}.".format(task_id, index))
+            results.append(result)
+
+        return results
+
     def execute(self, task_id, task_args, force_refresh=False):
+        if self.master_only:
+            return self.execute_eager(task_id, task_args)
+
         current_tasks = []
         for args in task_args:
             index = self.num_tasks_by_id[task_id]

@@ -265,9 +265,28 @@ class Experiment(object):
         with open(config_path, 'wb') as f:
             pickle.dump(config, f)
 
+    def save_summary(self, keys_to_save=[]):
+        """
+        Saves only a selection of keys as a summary into a summarized result.
+        """
+        summary_results = dict((key, self.R[key]) for key in keys_to_save
+                               if key in self.R)
+        summary_path = os.path.join(self.base_dir, 'result_summary.npz')
+        self.save_phase_result(summary_path, summary_results)
+
+    def load_summary(self):
+        """
+        Loads summarized results, if they exist.
+        """
+        summary_path = os.path.join(self.base_dir, 'result_summary.npz')
+        if os.path.exists(summary_path):
+            summary_results = self.load_phase_result(summary_path)
+            self.R.update(summary_results)
+
     def run(self,
             force_refresh=False,
-            invalidate_phase=None):
+            invalidate_phase=None,
+            save_phase_results=True):
         """
         Runs all phases of the experiment, skipping phases that have already
         been run if possible, and if desired. Previous results will be overwritten.
@@ -303,7 +322,9 @@ class Experiment(object):
 
                 if not isinstance(result, dict):
                     raise ValueError('Experiment phases should return dictionaries.')
-                self.save_phase_result(result_path, result)
+
+                if save_phase_results:
+                    self.save_phase_result(result_path, result)
 
             self.results[phase.name] = result
             self.R.update(result)
