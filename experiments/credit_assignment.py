@@ -158,7 +158,7 @@ class CreditAssignment(Experiment):
 
         with benchmark("Training original model"):
             model.fit(self.train, l2_reg=l2_reg, sample_weights=self.sample_weights[0])
-            model.print_model_eval(self.datasets, sample_weights=self.sample_weights, l2_reg=l2_reg)
+            model.print_model_eval(self.datasets, train_sample_weights=self.sample_weights[0], test_sample_weights=self.sample_weights[2], l2_reg=l2_reg)
             model.save('initial')
 
         res['initial_train_losses'] = model.get_indiv_loss(self.train)

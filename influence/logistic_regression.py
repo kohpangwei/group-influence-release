@@ -722,18 +722,18 @@ class LogisticRegression(Model):
         accuracy = self.get_accuracy(dataset, **kwargs)
         return loss_reg, loss_no_reg, accuracy
 
-    def print_model_eval(self, datasets, l2_reg=0, sample_weights=None):
-	if sample_weights is None:
-            sample_weights = [np.ones(datasets.train.x.shape[0]),
-                    np.ones(datasets.validation.x.shape[0]),
-                    np.ones(datasets.test.x.shape[0])]
+    def print_model_eval(self, datasets, l2_reg=0, train_sample_weights=None, test_sample_weights=None):
+	if train_sample_weights is None:
+            train_sample_weights = np.ones(datasets.train.x.shape[0])
+        if test_sample_weights is None:
+            test_sample_weights = np.ones(datasets.test.x.shape[0])
         params_flat = self.get_params_flat()
 
         train_loss_reg, train_loss_no_reg, train_acc = \
-            self.get_model_evaluation(datasets.train, l2_reg=l2_reg, verbose=False, sample_weights=sample_weights[0])
+            self.get_model_evaluation(datasets.train, l2_reg=l2_reg, verbose=False, sample_weights=train_sample_weights)
 
         test_loss_reg, test_loss_no_reg, test_acc = \
-            self.get_model_evaluation(datasets.test, l2_reg=l2_reg, verbose=False, sample_weights=sample_weights[2])
+            self.get_model_evaluation(datasets.test, l2_reg=l2_reg, verbose=False, sample_weights=test_sample_weights)
 
         train_total_grad_loss = self.get_total_grad_loss(datasets.train, l2_reg=l2_reg, verbose=False)
 
