@@ -365,9 +365,10 @@ def load_cdr_labeling_info(data_dir=None, force_refresh=False):
 
 def load_labeling_info(ds_name, source_url, data_dir=None, force_refresh=False):
     dataset_dir = get_dataset_dir('babble', data_dir=data_dir)
-    path = os.path.join(dataset_dir, '{}_labeling_info.pkl'.format(ds_name))
+    LF_path = os.path.join(dataset_dir, '{}_LF_labels.pkl'.format(ds_name))
+    gold_path = os.path.join(dataset_dir, '{}_gold_labels.pkl'.format(ds_name))
 
-    if not os.path.exists(path) or force_refresh:
+    if not os.path.exists(LF_path) or not os.path.exists(gold_path) or force_refresh:
         
         raw_path = maybe_download(source_url, '{}.db'.format(ds_name), dataset_dir)
 
@@ -378,12 +379,15 @@ def load_labeling_info(ds_name, source_url, data_dir=None, force_refresh=False):
         gold_labels = pd.read_sql_query("select value, candidate_id from gold_label order by candidate_id asc;", conn) # gold, ex_id
         conn.close()
         
-        LF_labels.to_pickle('LF_labels'+path)
-        gold_labels.to_pickle('gold_labels'+path)
+        LF_labels.to_pickle(LF_path)
+        gold_labels.to_pickle(gold_path)
     else:
         print('Retrieving {} labeling info.'.format(ds_name))
-        LF_labels = pd.read_pickle('LF_labels'+path)
-        gold_labels = pd.read_pickle('gold_labels'+path)
+        LF_labels = pd.read_pickle(LF_path)
+        gold_labels = pd.read_pickle(gold_path)
+
+    LF_labels = LF_labels.values
+    gold_labels = gold_labels.values
 
     return LF_labels, gold_labels
         
