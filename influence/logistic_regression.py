@@ -723,10 +723,6 @@ class LogisticRegression(Model):
         return loss_reg, loss_no_reg, accuracy
 
     def print_model_eval(self, datasets, l2_reg=0, train_sample_weights=None, test_sample_weights=None):
-	if train_sample_weights is None:
-            train_sample_weights = np.ones(datasets.train.x.shape[0])
-        if test_sample_weights is None:
-            test_sample_weights = np.ones(datasets.test.x.shape[0])
         params_flat = self.get_params_flat()
 
         train_loss_reg, train_loss_no_reg, train_acc = \
