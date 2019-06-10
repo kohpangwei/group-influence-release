@@ -23,9 +23,11 @@ def plot_distribution(ax, value,
         title = title + "\n" + subtitle
     ax.set_title(title)
 
-def generate_color_cycle(labels):
+def generate_color_cycle(labels, only_colors=False):
     unique_labels = np.unique(labels)
     unique_colors = plt.cm.rainbow(np.linspace(0, 1, len(unique_labels)))
+    if only_colors:
+        return unique_colors
     label_to_color = dict(zip(unique_labels, unique_colors))
     return [label_to_color[label] for label in labels], label_to_color
 
@@ -42,19 +44,20 @@ def plot_influence_correlation(ax,
                                ylabel="Predicted influence",
                                balanced=False,
                                equal=True,
-                               spearmanr=True):
+                               spearmanr=True,
+                               sorted_labels=False):
     # Compute data bounds
-    minX, maxX = np.min(x), np.max(x)
-    minY, maxY = np.min(y), np.max(y)
+    minX, maxX = np.min(actl), np.max(actl)
+    minY, maxY = np.min(pred), np.max(pred)
 
     if equal:
         minX = minY = min(minX, minY)
         maxX = maxY = max(maxX, maxY)
 
     if balanced:
-        maxX = max(np.abs(minX), np.abs(maxX))
+        maxX = np.max(np.abs(minX), np.abs(maxX))
         minX = -maxX
-        maxY = max(np.abs(minY), np.abs(maxY))
+        maxY = np.max(np.abs(minY), np.abs(maxY))
         minY = -maxY
 
     # Expand bounds
@@ -69,12 +72,17 @@ def plot_influence_correlation(ax,
 
     # Color groups of points if tagged
     if colors is None and label is not None:
-        colors, label_to_color = generate_color_cycle(label)
-        legend_elements = [ Line2D([0], [0], linewidth=0, marker='o',
-                                   color=label_color, label=label_name, markersize=5)
-                            for label_name, label_color in label_to_color.items() ]
-        ax.legend(handles=legend_elements,
-                  loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
+
+        if sorted_labels:
+            colors = generate_color_cycle(label, True)
+            legend_elements = [ Line2D([0], [0], linewidth=0, marker='o',
+                                       color=label_color, label=lab, markersize=5)
+                                for lab, label_color in zip(label, colors) ]
+        else:
+            colors, label_to_color = generate_color_cycle(label)
+            legend_elements = [ Line2D([0], [0], linewidth=0, marker='o',
+                                       color=label_color, label=label, markersize=5)
+                                for label, label_color in label_to_color.items() ]
 
     # Randomize plot order for colors to show up better
     rng = np.random.RandomState(0)
@@ -93,6 +101,7 @@ def plot_influence_correlation(ax,
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
+
     ax.set_xlim([minX - padX, maxX + padX])
     ax.set_ylim([minY - padY, maxY + padY])
 
