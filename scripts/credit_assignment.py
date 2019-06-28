@@ -25,7 +25,9 @@ if __name__ == "__main__":
                         help="Invalidate phases starting from this phase index")
     parser.add_argument('--worker', dest='worker', action='store_true',
                         help="Behave only as a worker")
-    parser.set_defaults(force_refresh=False, worker=False)
+    parser.add_argument('--no-intermediate-results', dest='no_intermediate_results', action='store_true',
+                        help="Do not save any intermediate results, and run only a single master without parallelization")
+    parser.set_defaults(force_refresh=False, worker=False, no_intermediate_results=False)
 
     # Experiment args
     parser.add_argument('--dataset-id', default="mnli", type=str,
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         'sample_weights': None,
         'grad_batch_size': args.grad_batch_size,
         'hessian_batch_size': args.hessian_batch_size,
+        'master_only': args.no_intermediate_results,
      }
 
     if args.inverse_hvp_method is not None:
@@ -74,5 +77,41 @@ if __name__ == "__main__":
     if args.worker:
         exp.task_queue.run_worker()
     else:
-        exp.run(force_refresh=args.force_refresh,
-                invalidate_phase=args.invalidate)
+        if args.no_intermediate_results:
+            exp.run(force_refresh=args.force_refresh,
+                    invalidate_phase=args.invalidate,
+                    save_phase_results=False)
+
+            summary_keys = [
+                'cv_l2_reg',
+                'initial_test_losses',
+                'subset_tags',
+                'test_genres',
+                'nonfires_genres',
+                'fiction_test_actl_infl',
+                'fiction_test_pred_infl',
+                'government_test_actl_infl',
+                'government_test_pred_infl',
+                'slate_test_actl_infl',
+                'slate_test_pred_infl',
+                'telephone_test_actl_infl',
+                'telephone_test_pred_infl',
+                'travel_test_pred_infl',
+                'travel_test_actl_infl',
+                'facetoface_nonfires_actl_infl',
+                'facetoface_nonfires_pred_infl',
+                'letters_nonfires_actl_infl',
+                'letters_nonfires_pred_infl',
+                'nineeleven_nonfires_actl_infl',
+                'nineeleven_nonfires_pred_infl',
+                'oup_nonfires_actl_infl',
+                'oup_nonfires_pred_infl',
+                'verbatim_nonfires_actl_infl',
+                'verbatim_nonfires_pred_infl',
+                'subset_indices',
+                'all_test_pred_infl',
+            ]
+            exp.save_summary(summary_keys)
+        else:
+            exp.run(force_refresh=args.force_refresh,
+                    invalidate_phase=args.invalidate)

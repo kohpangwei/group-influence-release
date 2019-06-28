@@ -35,7 +35,7 @@ def load_mnli_ids(data_dir=None, force_refresh=False):
         all_ids = [all_ids[0], [], all_ids[1]]
         np.savez(path, ids=all_ids)
     else:
-        all_ids = np.load(path)['ids']
+        all_ids = np.load(path, allow_pickle=True)['ids']
     return np.array(all_ids)
 
 def load_mnli_nonfires_ids(data_dir=None, force_refresh=False):
@@ -50,7 +50,7 @@ def load_mnli_nonfires_ids(data_dir=None, force_refresh=False):
         ids = np.array(ids)
         np.savez(path, ids=ids)
     else:
-        ids = np.load(path)['ids']
+        ids = np.load(path, allow_pickle=True)['ids']
     return np.array(ids)
 
 def load_mnli(data_dir=None, non_tf=False):
@@ -58,7 +58,7 @@ def load_mnli(data_dir=None, non_tf=False):
     path = os.path.join(dataset_dir, 'mnli.npz')
 
     print('Loading mnli from {}.'.format(path))
-    data = np.load(path)
+    data = np.load(path, allow_pickle=True)
     labels = [data['lab0'],[],data['lab2']]
     x = [data['x0'],[],data['x2']]
 
@@ -82,7 +82,7 @@ def load_mnli_nonfires(data_dir=None):
     path = os.path.join(dataset_dir, 'mnli_nonfires.npz')
 
     print('Loading nonfires from {}.'.format(path))
-    data = np.load(path)
+    data = np.load(path, allow_pickle=True)
     x = np.array(data['x'])
     labels = np.array(data['labels'])
 
@@ -99,7 +99,7 @@ def load_mnli_genres(data_dir=None):
     path = os.path.join(dataset_dir, 'mnli_genres.npz')
 
     print('Loading mnli genres from {}.'.format(path))
-    genres = np.load(path)['genres']
+    genres = np.load(path, allow_pickle=True)['genres']
 
     print('Loaded mnli genres.')
     return np.array(genres)
@@ -109,7 +109,7 @@ def load_mnli_nonfires_genres(data_dir=None):
     path = os.path.join(dataset_dir, 'mnli_nonfires_genres.npz')
 
     print('Loading mnli nonfires genres from {}.'.format(path))
-    genres = np.load(path)['genres']
+    genres = np.load(path, allow_pickle=True)['genres']
 
     print('Loaded mnli nonfires genres.')
     return np.array(genres)

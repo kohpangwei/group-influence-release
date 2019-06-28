@@ -35,7 +35,7 @@ class Counterexamples(Experiment):
         super(Counterexamples, self).__init__(config, out_dir)
         self.dataset_id = config['dataset_id']
         tasks_dir = os.path.join(self.base_dir, 'tasks')
-        self.task_queue = TaskQueue(tasks_dir)
+        self.task_queue = TaskQueue(tasks_dir, master_only=self.config['master_only'])
         self.task_queue.define_task('retrain_and_newton_batch', self.retrain_and_newton_batch)
         self.task_queue.define_task('compute_cex_test_infl_batch', self.compute_cex_test_infl_batch)
 

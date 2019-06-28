@@ -53,7 +53,7 @@ def load_LFs(ds_name, source_url, validation_size=None, data_dir=None, force_ref
         print('Saved {} LF_ids to {}.'.format(ds_name, path))
     else:
         print('Loading {} LF_ids from {}.'.format(ds_name, path))
-        data = np.load(path)
+        data = np.load(path, allow_pickle=True)
         LF_ids = data['LF_ids']
 
     print('Loaded {} LF_ids.'.format(ds_name))
@@ -78,7 +78,7 @@ def load(ds_name, source_url, validation_size=None, data_dir=None, force_refresh
     dataset_dir = get_dataset_dir('babble', data_dir=data_dir)
     path = os.path.join(dataset_dir, '{}'.format(ds_name))
 
-    if not os.path.exists(path+'.npz') or force_refresh:
+    if not os.path.exists(path+'labels.npz') or force_refresh:
         
         raw_path = maybe_download(source_url, '{}.db'.format(ds_name), dataset_dir)
 
@@ -136,14 +136,15 @@ def load(ds_name, source_url, validation_size=None, data_dir=None, force_refresh
                     x[2][count, key_id-1] = val
                 count += 1
         
-        labels = [(labels[i]+1)/2 for i in range(3)] # convert (-1,1) to (0,1)
+        labels = [((labels[i]+1)/2) for i in range(3)] # convert (-1,1) to (0,1)
+        labels = [labels[i] for i in range(3)]
 
         for i in range(3):
             save_npz(path+'x{}.npz'.format(i),coo_matrix(x[i]))
         np.savez(path+'labels.npz', labels=labels)
     else:
         print('Loading {}.'.format(ds_name))
-        data = np.load(path+'labels.npz')
+        data = np.load(path+'labels.npz', allow_pickle=True)
         labels = data['labels']
         x = []
         for i in range(3):
@@ -163,8 +164,6 @@ def load_reduced_cdr(validation=None, data_dir=None, force_refresh=False):
     return load_reduced('cdr', validation, data_dir, force_refresh)
 
 def load_reduced(ds_name, validation=None, data_dir=None, force_refresh=False):
-    # The correct way to do this would be to call the ds_reduce experiment
-    # and take its output here. For now, we assume that's done.
     dataset_dir = get_dataset_dir('babble', data_dir=data_dir)
     red_path = os.path.join(dataset_dir, 'reduced_{}.npz'.format(ds_name))
 
@@ -174,8 +173,8 @@ def load_reduced(ds_name, validation=None, data_dir=None, force_refresh=False):
         assert os.path.exists(x_path)
 
         x = np.load(x_path, allow_pickle=True)['reduced_x']
-        x = [np.array(mat.todense()) for mat in x]
-        data = np.load(os.path.join(dataset_dir, 'cdrlabels.npz'))
+        x = [np.array(mat.tolist().todense()) for mat in x]
+        data = np.load(os.path.join(dataset_dir, 'cdrlabels.npz'), allow_pickle=True)
         labels = data['labels']
         np.savez(red_path,
                 labels=labels,
@@ -242,7 +241,7 @@ def load_weights(ds_name, source_url, data_dir=None, force_refresh=False):
                 weights=weights)
     else:
         print('Loading {} weights from {}.'.format(ds_name, path))
-        data = np.load(path)
+        data = np.load(path, allow_pickle=True)
         weights = data['weights']
 
     print('Loaded {} weights.'.format(ds_name))
@@ -258,7 +257,7 @@ def load_nonfires(ds_name, source_url, data_dir=None, force_refresh=False):
     dataset_dir = get_dataset_dir('babble', data_dir=data_dir)
     path = os.path.join(dataset_dir, '{}_nonfires'.format(ds_name))
 
-    if not os.path.exists(path+'.npz') or force_refresh:
+    if not os.path.exists(path+'labels.npz') or force_refresh:
         
         raw_path = maybe_download(source_url, '{}.db'.format(ds_name), dataset_dir)
 
@@ -313,7 +312,7 @@ def load_nonfires(ds_name, source_url, data_dir=None, force_refresh=False):
         np.savez(path+'labels.npz', labels=[labels]) 
     else:
         print('Loading {} nonfires.'.format(ds_name))
-        data = np.load(path+'labels.npz')
+        data = np.load(path+'labels.npz', allow_pickle=True)
         labels = data['labels'][0]
         x = load_npz(path+'x.npz')
 
@@ -329,8 +328,6 @@ def load_reduced_cdr_nonfires(data_dir=None, force_refresh=False):
     return load_reduced_nonfires('cdr', CDR_SOURCE_URL, data_dir=data_dir, force_refresh=force_refresh)
 
 def load_reduced_nonfires(ds_name, source_url, data_dir=None, force_refresh=False):
-    # The correct way to do this would be to call the ds_reduce experiment
-    # and take its output here. For now, we assume that's done.
     dataset_dir = get_dataset_dir('babble', data_dir=data_dir)
     red_path = os.path.join(dataset_dir, 'reduced_{}_nonfires.npz'.format(ds_name))
 
@@ -339,8 +336,8 @@ def load_reduced_nonfires(ds_name, source_url, data_dir=None, force_refresh=Fals
         x_path = os.path.join(dataset_dir, 'reduced_{}_nonfires_x.npz'.format(ds_name))
         assert os.path.exists(x_path)
 
-        x = np.load(x_path)['reduced_x'][0].todense()
-        data = np.load(os.path.join(dataset_dir,'cdr_nonfireslabels.npz'))
+        x = np.load(x_path, allow_pickle=True)['reduced_x'][0].tolist().todense()
+        data = np.load(os.path.join(dataset_dir,'cdr_nonfireslabels.npz'), allow_pickle=True)
         labels = data['labels'][0]
 
         np.savez(red_path,
@@ -348,7 +345,7 @@ def load_reduced_nonfires(ds_name, source_url, data_dir=None, force_refresh=Fals
                 x=np.array(x))
     else:
         print('Retrieving reduced {} nonfires.'.format(ds_name))
-        data = np.load(red_path)
+        data = np.load(red_path, allow_pickle=True)
         x = data['x']
         labels = data['labels']
 

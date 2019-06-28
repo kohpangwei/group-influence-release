@@ -48,7 +48,7 @@ if __name__ == "__main__":
             'cdr': (1e-4, 1e-1, 10),
         }[args.dataset_id],
         'initial_reg_range': {
-            'cdr': (1e-13, 1e3, 17),
+            'cdr': (1e-4, 1e-1, 10),
         }[args.dataset_id],
         'max_memory': int(args.max_memory),
         'fit_intercept': args.fit_intercept,

@@ -143,7 +143,20 @@ if __name__ == "__main__":
 
             summary_keys = [
                 'cv_l2_reg',
-                'initial_train_losses',
+                'initial_test_losses',
+                'fixed_test',
+                'subset_tags',
+                'subset_fixed_test_actl_margin_infl',
+                'subset_fixed_test_pred_margin_infl',
+                'subset_fixed_test_actl_infl',
+                'subset_fixed_test_pred_infl',
+                'subset_self_actl_infl',
+                'subset_self_pred_infl',
+                'subset_self_pparam_infl',
+                'subset_self_nparam_infl',
+                'subset_fixed_test_nparam_margin_infl',
+                'subset_fixed_test_nparam_infl',
+                'subset_fixed_test_pparam_infl',
             ]
             exp.save_summary(summary_keys)
         else:

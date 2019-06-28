@@ -127,8 +127,8 @@ class BabbleReduce(Experiment):
             features = [csr_matrix(mat) for mat in features]
             reduced_features = [np.array(features[i][:,self.R['feature_inds']]) for i in range(3)]
             name = 'reduced_{}_x'.format(self.config['dataset_config']['dataset_id'])
-            if self.config['sample_weights']: name += '_via_sample_weights'
-            np.savez(os.path.join(self.out_dir, name),
+            # if self.config['sample_weights']: name += '_via_sample_weights'
+            np.savez(os.path.join(self.save_reduced_dir, name),
                     reduced_x=reduced_features)
             res['reduced_features'] = reduced_features
             print('Using {} features, shape {}.'.format(len(self.R['feature_inds']), np.array(reduced_features).shape))
@@ -136,7 +136,7 @@ class BabbleReduce(Experiment):
             features_nonfires = csr_matrix(self.nonfires.x)
             reduced_nonfires = np.array(features_nonfires[:, self.R['feature_inds']])
             name = 'reduced_{}_nonfires_x'.format(self.config['dataset_config']['dataset_id'])
-            if self.config['sample_weights']: name += '_via_sample_weights'
+            # if self.config['sample_weights']: name += '_via_sample_weights'
             res['reduced_features_nonfires'] = reduced_nonfires
             np.savez(os.path.join(self.save_reduced_dir, name),
                     reduced_x=[reduced_nonfires])

@@ -401,7 +401,9 @@ class Experiment(object):
         config_path = cls.get_config_path(cls.get_base_dir(out_dir, cls.experiment_id, run_id))
         config = cls.load_config(config_path)
         exp = cls(config, out_dir=out_dir)
-        if phase_indices is not None:
+        if 'master_only' in config and config['master_only']:
+            exp.load_summary()
+        elif phase_indices is not None:
             exp.load_phases(phase_indices, verbose=verbose)
         else:
             exp.load_results(verbose=verbose)

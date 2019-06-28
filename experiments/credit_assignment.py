@@ -79,7 +79,8 @@ class CreditAssignment(Experiment):
         print_class_balance(self.test, 'test')
         print_class_balance(self.nonfires, 'nonfires')
 
-        self.task_queue = TaskQueue(os.path.join(self.base_dir, 'tasks'))
+        self.task_queue = TaskQueue(os.path.join(self.base_dir, 'tasks'),\
+                master_only=self.config['master_only'])
         self.task_queue.define_task('compute_all_and_fixed_test_and_nonfire_influence',\
                 self.compute_all_and_fixed_test_and_nonfire_influence)
         self.task_queue.define_task('retrain_subsets', self.retrain_subsets)
@@ -255,11 +256,6 @@ class CreditAssignment(Experiment):
             names, inds = self.get_turker_subsets()
             for name, ind in zip(names, inds):
                 tagged_subsets.append(('same_turker-{}'.format(name), ind))
-
-        with benchmark("Genre subset"):
-            names, inds = self.get_genre_subsets()
-            for name, ind in zip(names, inds):
-                tagged_subsets.append(('same_genre-{}'.format(name), ind))
 
         subset_tags = [tag for tag, subset in tagged_subsets]
         subset_indices = [subset for tag, subset in tagged_subsets]
@@ -615,35 +611,32 @@ class CreditAssignment(Experiment):
     @phase(9)
     def plot_all(self):
         print('Will save plots to {}'.format(self.plot_dir))
-        mask = range(len(self.R['subset_tags'])-5)
-        print(self.R['subset_tags'][mask])
-        add = ''
-        self.plot_influence('self', 'self-influence{}'.format(add),
-                            self.R['self_actl_infl'][mask],
-                            self.R['self_pred_infl'][mask])
+        self.plot_influence('self', 'self-influence',
+                            self.R['self_actl_infl'],
+                            self.R['self_pred_infl'])
         for i, test_idx in enumerate(self.R['fixed_test']):
-            self.plot_influence('fixed test {}'.format(test_idx), 'fixed-test-{}{}'.format(test_idx, add),
-                                self.R['fixed_test_actl_infl'][mask, i],
-                                self.R['fixed_test_pred_infl'][mask, i])
+            self.plot_influence('fixed test {}'.format(test_idx), 'fixed-test-{}'.format(test_idx),
+                                self.R['fixed_test_actl_infl'][:, i],
+                                self.R['fixed_test_pred_infl'][:, i])
         for i, nonfire_idx in enumerate(self.R['fixed_nonfires']):
-            self.plot_influence('fixed nonfire {}'.format(i), 'fixed-nonfires-{}{}'.format(i, add),
-                                self.R['fixed_nonfires_actl_infl'][mask,i],
-                                self.R['fixed_nonfires_pred_infl'][mask,i])
+            self.plot_influence('fixed nonfire {}'.format(i), 'fixed-nonfires-{}'.format(i),
+                                self.R['fixed_nonfires_actl_infl'][:,i],
+                                self.R['fixed_nonfires_pred_infl'][:,i])
         for i, genre_inds in enumerate(self.R['test_genre_inds']):
             name = self.R['test_genres'][i]
-            self.plot_influence('test genre {}'.format(name), 'test-genre-{}{}'.format(name, add),
-                                self.R['{}_test_actl_infl'.format(name)][mask],
-                                self.R['{}_test_pred_infl'.format(name)][mask])
+            self.plot_influence('test genre {}'.format(name), 'test-genre-{}'.format(name),
+                                self.R['{}_test_actl_infl'.format(name)],
+                                self.R['{}_test_pred_infl'.format(name)])
         for i, genre_inds in enumerate(self.R['nonfires_genre_inds']):
             name = self.R['nonfires_genres'][i]
-            self.plot_influence('nonfire genre {}'.format(name), 'nonfires-genre-{}{}'.format(name, add),
-                                self.R['{}_nonfires_actl_infl'.format(name)][mask],
-                                self.R['{}_nonfires_pred_infl'.format(name)][mask])
+            self.plot_influence('nonfire genre {}'.format(name), 'nonfires-genre-{}'.format(name),
+                                self.R['{}_nonfires_actl_infl'.format(name)],
+                                self.R['{}_nonfires_pred_infl'.format(name)])
         prefixes = ['all'] + ['class_{}'.format(i) for i in range(self.num_classes)]
         for prefix in prefixes:
             for ds_name in ['train', 'test', 'nonfires']:
-                self.plot_influence('{} {} set'.format(prefix, ds_name), '{}-{}{}'.format(prefix, ds_name, add),
-                        self.R['{}_{}_actl_infl'.format(prefix, ds_name)][mask],
-                        self.R['{}_{}_pred_infl'.format(prefix, ds_name)][mask])
+                self.plot_influence('{} {} set'.format(prefix, ds_name), '{}-{}'.format(prefix, ds_name),
+                        self.R['{}_{}_actl_infl'.format(prefix, ds_name)],
+                        self.R['{}_{}_pred_infl'.format(prefix, ds_name)])
 
         return dict()

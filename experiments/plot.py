@@ -47,8 +47,8 @@ def plot_influence_correlation(ax,
                                spearmanr=True,
                                sorted_labels=False):
     # Compute data bounds
-    minX, maxX = np.min(actl), np.max(actl)
-    minY, maxY = np.min(pred), np.max(pred)
+    minX, maxX = np.min(x), np.max(x)
+    minY, maxY = np.min(y), np.max(y)
 
     if equal:
         minX = minY = min(minX, minY)
