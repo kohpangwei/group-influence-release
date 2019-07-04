@@ -11,6 +11,8 @@ import datasets.loader
 
 import argparse
 
+# NOTE: YOU MUST RUN scripts/babble_reduce.py FIRST
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Compute subset self and test influences')
 
