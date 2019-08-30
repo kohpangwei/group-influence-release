@@ -1,8 +1,0 @@
-We need to supply these files:
-* mnli.npz
-* mnli_genres.npz
-* mnli_nonfires.npz
-* mnli_nonfires_genres.npz
-* multinli_1.0_dev_mismatched_with_annotators.jsonl
-* multinli_1.0_train_with_annotators.jsonl
-* multinli_1.0_dev_matched_with_annotators.jsonl

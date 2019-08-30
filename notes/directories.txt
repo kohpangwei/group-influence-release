@@ -1,8 +1,0 @@
-In data_dir, there should be the following folders:
-* babble
-* cifar10
-* hospital
-* mnist
-* multinli_1.0
-* processd_animals
-* spam
