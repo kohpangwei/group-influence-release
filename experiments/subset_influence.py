@@ -380,8 +380,8 @@ class SubsetInfluenceLogreg(Experiment):
                                    np.linspace(size_1, size_3, subsets_per_phase).astype(int),
                                    np.linspace(size_1, size_4, self.num_subsets - 2 * subsets_per_phase).astype(int) ]
             for pred_infl, test_idx in zip(self.R['fixed_test_pred_infl'], self.R['fixed_test']):
-                for phase, subset_sizes in enumerate(subset_size_phases, 1):
-                    neg_tail_subsets, pos_tail_subsets = self.get_scalar_infl_tails(rng, pred_infl, subset_sizes)
+                for phase, phase_subset_sizes in enumerate(subset_size_phases, 1):
+                    neg_tail_subsets, pos_tail_subsets = self.get_scalar_infl_tails(rng, pred_infl, phase_subset_sizes)
                     tagged_subsets += [('neg_tail_test-{}-{}'.format(phase, test_idx), s) for s in neg_tail_subsets]
                     tagged_subsets += [('pos_tail_test-{}-{}'.format(phase, test_idx), s) for s in pos_tail_subsets]
                 print('Found scalar infl tail subsets for test idx {}.'.format(test_idx))
