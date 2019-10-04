@@ -183,7 +183,7 @@ class SubsetInfluenceLogreg(Experiment):
         if dataset_id == "hospital":
             fixed_test = [2267, 54826, 66678, 41567, 485, 25286]
         elif dataset_id == "spam":
-            fixed_test = [92, 441, 593, 275, 267, 415]
+            fixed_test = [386, 842, 326, 766, 65, 642]
         elif dataset_id == "mnist_small":
             fixed_test = [6172, 2044, 2293, 5305, 324, 3761]
         elif dataset_id == "mnist":
