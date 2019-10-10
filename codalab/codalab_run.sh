@@ -52,6 +52,7 @@ cl run -n figures $CL_RUN_FLAGS :src :cl :paper-figures.ipynb \
   :data-babble \
   :data-hospital \
   :data-mnist \
+  :data-mnli \
   :data-animals \
   :data-spam \
   :subsets-reduced-cdr \

@@ -17,7 +17,7 @@ EXPERIMENT_RUNS=(
   reg-hospital
   reg-mnist-small
   reg-spam
-  counterex
+  counterexamples
   data-valuation
   credit-assignment
 )
