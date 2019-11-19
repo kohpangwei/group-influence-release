@@ -2,7 +2,7 @@
 
 This code replicates the experiments from the following paper:
 
-> Pang Wei Koh, Kai-Siang Ang, Hubert H. K. Teo and Percy Liang
+> Pang Wei Koh*, Kai-Siang Ang*, Hubert H. K. Teo*, and Percy Liang
 >
 > [On the Accuracy of Influence Functions for Measuring Group
 > Effects](https://arxiv.org/abs/1905.13289)
